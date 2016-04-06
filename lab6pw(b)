@@ -1,0 +1,105 @@
+#include <windows.h>
+#include <iostream>
+
+static HBITMAP images[11] = {
+	(HBITMAP)LoadImage(NULL, L"img\\0.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE),
+	(HBITMAP)LoadImage(NULL, L"img\\1.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE),
+	(HBITMAP)LoadImage(NULL, L"img\\2.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE),
+	(HBITMAP)LoadImage(NULL, L"img\\3.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE),
+	(HBITMAP)LoadImage(NULL, L"img\\4.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE),
+	(HBITMAP)LoadImage(NULL, L"img\\5.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE),
+	(HBITMAP)LoadImage(NULL, L"img\\6.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE),
+	(HBITMAP)LoadImage(NULL, L"img\\7.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE),
+	(HBITMAP)LoadImage(NULL, L"img\\8.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE),
+	(HBITMAP)LoadImage(NULL, L"img\\9.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE),
+	(HBITMAP)LoadImage(NULL, L"img\\10.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE),
+};
+
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+	PSTR szCmdLine, int iCmdShow)
+{
+	//images[0] = (HBITMAP)LoadImage(hInstance, )
+
+	static TCHAR szAppName[] = TEXT("DigClock");
+	HWND hwnd;
+	MSG msg;
+	WNDCLASS wndclass;
+	wndclass.style = CS_HREDRAW | CS_VREDRAW;
+	wndclass.lpfnWndProc = WndProc;
+	wndclass.cbClsExtra = 0;
+	wndclass.cbWndExtra = 0;
+	wndclass.hInstance = hInstance;
+	wndclass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	wndclass.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wndclass.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
+	wndclass.lpszMenuName = NULL;
+	wndclass.lpszClassName = szAppName;
+	if (!RegisterClass(&wndclass))
+	{
+		MessageBox(NULL, TEXT("Program requires Windows NT!"),
+			szAppName, MB_ICONERROR);
+		return 0;
+	}
+	hwnd = CreateWindow(szAppName, TEXT("Digital Clock"),
+		WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT, CW_USEDEFAULT,
+		302, 100,
+		NULL, NULL, hInstance, NULL);
+	ShowWindow(hwnd, iCmdShow);
+	UpdateWindow(hwnd);
+	while (GetMessage(&msg, NULL, 0, 0))
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+	return msg.wParam;
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+	HDC hDc, hDcMem;
+	PAINTSTRUCT ps;
+	static SYSTEMTIME st;
+
+	switch (msg)
+	{
+	case WM_CREATE:
+		SetTimer(hWnd, 1, 1000, NULL);
+		GetLocalTime(&st);
+		return 0;
+
+	case WM_TIMER:
+		GetLocalTime(&st);
+		InvalidateRect(hWnd, 0, NULL);
+		return 0;
+	case WM_PAINT:
+		hDc = BeginPaint(hWnd, &ps);
+
+		hDcMem = CreateCompatibleDC(hDc);
+		SelectObject(hDcMem, images[st.wHour / 10]);
+		BitBlt(hDc, 0, 0, 32, 32, hDcMem, 0, 0, SRCCOPY);
+		SelectObject(hDcMem, images[st.wHour % 10]);
+		BitBlt(hDc, 32, 0, 32, 32, hDcMem, 0, 0, SRCCOPY);
+		SelectObject(hDcMem, images[10]);
+		BitBlt(hDc, 64, 0, 12, 32, hDcMem, 0, 0, SRCCOPY);
+		SelectObject(hDcMem, images[st.wMinute / 10]);
+		BitBlt(hDc, 76, 0, 32, 32, hDcMem, 0, 0, SRCCOPY);
+		SelectObject(hDcMem, images[st.wMinute % 10]);
+		BitBlt(hDc, 108, 0, 32, 32, hDcMem, 0, 0, SRCCOPY);
+		SelectObject(hDcMem, images[10]);
+		BitBlt(hDc, 140, 0, 12, 32, hDcMem, 0, 0, SRCCOPY);
+		SelectObject(hDcMem, images[st.wSecond / 10]);
+		BitBlt(hDc, 152, 0, 32, 32, hDcMem, 0, 0, SRCCOPY);
+		SelectObject(hDcMem, images[st.wSecond % 10]);
+		BitBlt(hDc, 184, 0, 32, 32, hDcMem, 0, 0, SRCCOPY);
+		DeleteObject(hDcMem);
+
+		EndPaint(hWnd, &ps);
+		return 0;
+	case WM_DESTROY:
+		KillTimer(hWnd, 1);
+		PostQuitMessage(0);
+		return 0;
+	}
+	return DefWindowProc(hWnd, msg, wParam, lParam);
+}
