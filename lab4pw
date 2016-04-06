@@ -1,0 +1,139 @@
+#include <windows.h>
+#include <math.h>
+
+LRESULT CALLBACK WindowProcedure(HWND, UINT, WPARAM, LPARAM);
+int WINAPI WinMain(HINSTANCE hThisInstance,
+	HINSTANCE hPrevInstance,
+	LPSTR lpszArgument,
+	int nFunsterStil)
+
+{
+	HWND hwnd;              
+	MSG messages;          
+	WNDCLASSEX wincl;       
+	wincl.hInstance = hThisInstance;
+	wincl.lpszClassName = L"....";
+	wincl.lpfnWndProc = WindowProcedure;      
+	wincl.style = CS_DBLCLKS;                
+	wincl.cbSize = sizeof (WNDCLASSEX);
+	wincl.hIcon = LoadIcon(NULL, IDI_SHIELD);
+	wincl.hIconSm = LoadIcon(NULL, IDI_SHIELD);
+	wincl.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wincl.lpszMenuName = NULL;                 
+	wincl.cbClsExtra = 0;                     
+	wincl.cbWndExtra = 0;                     
+	
+	wincl.hbrBackground = (HBRUSH)COLOR_BACKGROUND;
+	if (!RegisterClassEx(&wincl))
+		return 0;
+	hwnd = CreateWindowEx(
+		0,                   
+		L"....",        
+		L"Lab4 Programare Windows",     
+		WS_OVERLAPPEDWINDOW, 
+		CW_USEDEFAULT,       
+		CW_USEDEFAULT,       
+		CW_USEDEFAULT,
+		CW_USEDEFAULT,
+		HWND_DESKTOP,        
+		NULL,              
+		hThisInstance,       
+		NULL                 
+		);
+	ShowWindow(hwnd, SW_SHOW);
+	while (GetMessage(&messages, NULL, 0, 0))
+	{
+		TranslateMessage(&messages);
+		DispatchMessage(&messages);
+	}
+	return messages.wParam;
+}
+
+LRESULT CALLBACK WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+
+
+	static HBITMAP hBitmap;
+	static BITMAP bm;
+	static HDC memBit;
+	static XFORM xf;
+	static double angle = 0;
+	static int x, y, cx, cy;
+	HDC hdc;
+	PAINTSTRUCT ps;
+
+	switch (message)                 
+	{
+
+	case WM_CREATE:
+
+		SetClassLong(hwnd, GCL_HBRBACKGROUND, (LONG)CreateSolidBrush(RGB(255, 255, 255)));
+		hBitmap = (HBITMAP)LoadImage(NULL, L"joker-minimal.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_CREATEDIBSECTION);
+		GetObject(hBitmap, sizeof(bm), &bm);
+		hdc = GetDC(hwnd);
+		memBit = CreateCompatibleDC(hdc);
+		SelectObject(memBit, hBitmap);
+		ReleaseDC(hwnd, hdc);
+		break;
+
+	case WM_SIZE:
+
+		cx = LOWORD(lParam) / 2;
+		cy = HIWORD(lParam) / 2;
+		xf.eDx = cx;
+		xf.eDy = cy;
+		x = -bm.bmWidth / 2;
+		y = -bm.bmHeight / 2;
+		InvalidateRect(hwnd, NULL, 1);
+		break;
+
+	case WM_KEYDOWN:
+		switch (wParam)
+		{
+		case VK_NUMPAD4:
+			angle += 3.14*10.0 / 180.0;
+			InvalidateRect(hwnd, NULL, 1);
+			break;
+		case VK_NUMPAD6:
+			angle -= 3.14*10.0 / 180.0;
+			InvalidateRect(hwnd, NULL, 1);
+			break;
+		case VK_LEFT:
+			x -= 100;
+			InvalidateRect(hwnd, NULL, 1);
+			break;
+		case VK_RIGHT:
+			x += 100;
+			InvalidateRect(hwnd, NULL, 1);
+			break;
+		case VK_UP:
+			y -= 100;
+			InvalidateRect(hwnd, NULL, 1);
+			break;
+		case VK_DOWN:
+			y += 100;
+			InvalidateRect(hwnd, NULL, 1);
+			break;
+		default:
+			break;
+		}
+
+	case WM_PAINT:
+
+		xf.eM22 = xf.eM11 = cos(angle);
+		xf.eM12 = -(xf.eM21 = sin(angle));
+		hdc = BeginPaint(hwnd, &ps);
+		SetGraphicsMode(hdc, GM_ADVANCED);
+		SetWorldTransform(hdc, &xf);
+		BitBlt(hdc, x, y, bm.bmWidth, bm.bmHeight, memBit, 0, 0, SRCCOPY);
+		EndPaint(hwnd, &ps);
+		break;
+
+	case WM_DESTROY:
+		PostQuitMessage(0);   
+		break;
+	default:
+		return DefWindowProc(hwnd, message, wParam, lParam);
+	}
+	return 0;
+}
