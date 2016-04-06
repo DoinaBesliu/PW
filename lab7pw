@@ -1,0 +1,217 @@
+#include <windows.h>
+#include <cmath>
+
+HWND hWndRB[3];
+HWND hWndCB[3];
+HWND hWndPB[2];
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
+int WINAPI WinMain(HINSTANCE hInst,
+	HINSTANCE hPrevInst,
+	LPSTR pCommandLine,
+	int nCommandShow) {
+	TCHAR className[] = L"Lab_7";
+	HWND hWindow;
+	MSG message;
+	WNDCLASSEX windowClass;
+
+
+	windowClass.cbSize = sizeof(windowClass);
+	windowClass.style = CS_HREDRAW | CS_VREDRAW;
+	windowClass.lpfnWndProc = WndProc;
+	windowClass.lpszMenuName = NULL;
+	windowClass.lpszClassName = className;
+	windowClass.cbWndExtra = NULL;
+	windowClass.cbClsExtra = NULL;
+	windowClass.hIcon = LoadIcon(NULL, IDI_WINLOGO);
+	windowClass.hIconSm = LoadIcon(NULL, IDI_WINLOGO);
+	windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
+	windowClass.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
+	windowClass.hInstance = hInst;
+
+	if (!RegisterClassEx(&windowClass)) {
+		MessageBox(NULL, L"Classa nu a fost inregistrata!", L"Error", MB_OK);
+		return NULL;
+	}
+	hWindow = CreateWindow(className,
+		L"Laboratorul Nr.7",
+		WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT,
+		NULL,
+		1000, 400,
+		(HWND)NULL,
+		NULL,
+		HINSTANCE(hInst),
+		NULL
+		);
+	if (!hWindow) {
+		MessageBox(NULL, L"Fereastra nu a fost creata!", L"Error", MB_OK);
+		return NULL;
+	}
+	ShowWindow(hWindow, nCommandShow);
+	UpdateWindow(hWindow);
+	while (GetMessage(&message, NULL, NULL, NULL)) {
+		TranslateMessage(&message);
+		DispatchMessage(&message);
+	}
+	return message.wParam;
+}
+
+static int type = 1;
+static COLORREF color = RGB(255, 0, 0);
+static bool isColor = false;
+static COLORREF restor;
+static int grad = 0;
+float DEG2RAD = (float)(3.14159 / 180);
+double x = 0.0, y = 0.0, degInRad;
+
+void drawShape(HDC hDc, int type, COLORREF color) {
+	HBRUSH hBrush = CreateSolidBrush(color);
+	SelectObject(hDc, hBrush);
+	switch (type) {
+	case 1:
+		Ellipse(hDc, 500 + (int)x, 200 + (int)y, 600 + (int)x, 300 + (int)y);
+		break;
+	case 2:
+		Rectangle(hDc, 500 + (int)x, 200 + (int)y, 600 + (int)x, 300 + (int)y);
+		break;
+	case 3:
+		Rectangle(hDc, 500 + (int)x, 200 + (int)y, 750 + (int)x, 300 + (int)y);
+		break;
+	}
+	DeleteObject(hBrush);
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+	PAINTSTRUCT ps;
+	HDC hdc;
+	//static HWND hbtn;
+	switch (message) {
+	case WM_CREATE:
+		hWndRB[0] = CreateWindow(L"button", L"Circle", WS_CHILD |
+			WS_VISIBLE | WS_CLIPSIBLINGS | BS_AUTORADIOBUTTON | WS_GROUP,
+			20, 50, 100, 25, hWnd, (HMENU)1,
+			(HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
+		SendMessage(hWndRB[0], BM_SETCHECK, 1, 0l);
+		hWndRB[1] = CreateWindow(L"button", L"Square", WS_CHILD |
+			WS_VISIBLE | WS_CLIPSIBLINGS | BS_AUTORADIOBUTTON,
+			20, 75, 100, 25, hWnd, (HMENU)2,
+			(HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
+		hWndRB[2] = CreateWindow(L"button", L"Rectangle", WS_CHILD |
+			WS_VISIBLE | WS_CLIPSIBLINGS | BS_AUTORADIOBUTTON,
+			20, 100, 100, 25, hWnd, (HMENU)3,
+			(HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
+
+		hWndCB[0] = CreateWindow(L"button", L"Red", WS_CHILD |
+			WS_VISIBLE | WS_CLIPSIBLINGS | BS_AUTOCHECKBOX | WS_GROUP,
+			910, 50, 990, 25, hWnd, (HMENU)4,
+			(HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
+		hWndCB[1] = CreateWindow(L"button", L"Green", WS_CHILD |
+			WS_VISIBLE | WS_CLIPSIBLINGS | BS_AUTOCHECKBOX,
+			910, 75, 990, 25, hWnd, (HMENU)5,
+			(HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
+		hWndCB[2] = CreateWindow(L"button", L"Blue", WS_CHILD |
+			WS_VISIBLE | WS_CLIPSIBLINGS | BS_AUTOCHECKBOX,
+			910, 100, 990, 25, hWnd, (HMENU)6,
+			(HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
+
+		hWndPB[0] = CreateWindow(L"button", L"START", WS_CHILD |
+			WS_VISIBLE | WS_CLIPSIBLINGS | BS_PUSHBUTTON,
+			20, 250, 100, 25, hWnd, (HMENU)7,
+			(HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
+		hWndPB[1] = CreateWindow(L"button", L"STOP", WS_CHILD |
+			WS_VISIBLE | WS_CLIPSIBLINGS | BS_PUSHBUTTON,
+			20, 275, 100, 25, hWnd, (HMENU)8,
+			(HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE), NULL);
+		break;
+	case WM_PAINT:
+		hdc = BeginPaint(hWnd, &ps);
+		if (isColor == false) {
+			restor = GetDCBrushColor(hdc);
+			color = restor;
+			isColor = true;
+		}
+		drawShape(hdc, type, color);
+		EndPaint(hWnd, &ps);
+		break;
+
+	case WM_COMMAND:
+	{
+		UINT code = HIWORD(wParam);
+		UINT idCtrl = LOWORD(wParam);
+		//RADIO BUTTONS
+		if (code == BN_CLICKED) {
+			switch (idCtrl) {
+			case 1:
+				type = 1;
+				break;
+			case 2:
+				type = 2;
+				break;
+			case 3:
+				type = 3;
+				break;
+			case 4:
+				if (SendMessage(hWndCB[0], BM_GETCHECK, 0, 0) != 0) {
+					EnableWindow(hWndCB[1], 0);
+					EnableWindow(hWndCB[2], 0);
+					color = RGB(255, 0, 0);
+				}
+				else {
+					EnableWindow(hWndCB[1], 1);
+					EnableWindow(hWndCB[2], 1);
+					color = restor;
+				}
+				break;
+			case 5:
+				if (SendMessage(hWndCB[1], BM_GETCHECK, 0, 0) != 0) {
+					EnableWindow(hWndCB[0], 0);
+					EnableWindow(hWndCB[2], 0);
+					color = RGB(0, 255, 0);
+				}
+				else {
+					EnableWindow(hWndCB[0], 1);
+					EnableWindow(hWndCB[2], 1);
+					color = restor;
+				}
+				break;
+			case 6:
+				if (SendMessage(hWndCB[2], BM_GETCHECK, 0, 0) != 0) {
+					EnableWindow(hWndCB[0], 0);
+					EnableWindow(hWndCB[1], 0);
+					color = RGB(0, 0, 255);
+				}
+				else
+					color = restor;
+				break;
+
+			case 7:
+				SetTimer(hWnd, 1, 1, NULL);
+				break;
+			case 8:
+				KillTimer(hWnd, 1);
+				break;
+			}
+		}
+
+	}
+	InvalidateRect(hWnd, NULL, TRUE);
+	break;
+
+	case WM_TIMER:
+		degInRad = grad * DEG2RAD;
+		grad += 1;
+
+		x = cos(degInRad) * 100 + 50;
+		y = sin(degInRad) * 100 + 50;
+
+		InvalidateRect(hWnd, NULL, TRUE);
+		break;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
+	default: return DefWindowProc(hWnd, message, wParam, lParam);
+	}
+	return 0;
+}
