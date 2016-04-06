@@ -1,0 +1,117 @@
+#include <windows.h>
+#include <cmath>
+
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);//referire la fereastra,intreg,parametrii de mesaj
+
+int WINAPI WinMain(HINSTANCE hInstance,
+	HINSTANCE hPrevInstance,
+	PSTR szCmdLine,
+	int iCmdShow)
+
+{
+
+	TCHAR szAppName[] = L"Bezier";
+
+	HWND        hwnd;
+
+	MSG         msg;
+
+	WNDCLASSEX  wndclass;//obiectul instantiat din structura
+
+	wndclass.cbSize = sizeof(wndclass);//dimensiunea structurii
+
+	wndclass.style = CS_HREDRAW | CS_VREDRAW;//stilul ferestrei
+
+	wndclass.lpfnWndProc = WndProc;//functiile ferestrei care trateaza sms ferestrei
+
+	wndclass.cbClsExtra = 0;//nu exista date suplimentare pentru clasa(rezerva spatiul sup.pentru clasa)
+
+	wndclass.cbWndExtra = 0;//nu exista date suplimentare pentru fereastra(rezerva spat.sup.pentru fereastra)
+
+	wndclass.hInstance = hInstance;//instanta aplicatiei
+
+	wndclass.hIcon = LoadIcon(NULL, IDI_APPLICATION);//icoana predefinita
+
+	wndclass.hCursor = LoadCursor(NULL, IDC_ARROW);//se incarca un cursor de tip sageata
+
+	wndclass.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);//culoarea fondului
+
+	wndclass.lpszMenuName = NULL;//numele resursei meniu
+
+	wndclass.lpszClassName = szAppName;//numele clasei de ferestre
+
+	wndclass.hIconSm = LoadIcon(NULL, IDI_APPLICATION);//icoana asociata clasei ferestre
+
+	RegisterClassEx(&wndclass);
+
+	hwnd = CreateWindow(szAppName, L"Bezier Splines",//text pentru bara de titlu a ferestrei
+
+		WS_OVERLAPPEDWINDOW,//stilul ferestrei
+
+		CW_USEDEFAULT, CW_USEDEFAULT,// pozitia orizontala si verticala implicita
+
+		800, 500,// latimea si inaltimea implicita
+
+		NULL,// nu are parinte
+
+		NULL,// foloseste meniul clasei de ferestre 
+
+		hInstance,// proprietara ferestrei
+
+		NULL);// parametri de creare
+
+	ShowWindow(hwnd, iCmdShow);// afiseaza fereastra
+
+	UpdateWindow(hwnd);// trimite mesajul WM_PAINT
+	// preia si distribuie mesaje din coada de asteptare
+	while (GetMessage(&msg, NULL, 0, 0))
+
+	{
+
+		TranslateMessage(&msg);//convertirea unor mesaje de la tastatură.
+
+		DispatchMessage(&msg);//retransmite structura msg sistemului de operare
+
+	}
+
+	return msg.wParam;// intoarce valoarea de la PostQuitMessage
+
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, // handler-ul ferestrei
+	UINT Msg,  // tipul mesajului(un intreg-32biti)
+	WPARAM wParam, LPARAM lParam) //parametri de mesaj
+{
+	HDC hDC;//referire la context de dispozitiv
+	PAINTSTRUCT Ps;
+	double t = 0.0;
+	POINT Pt[4] = { 0, 300, 30, 500, 300, 500, 400, 300 };
+
+	switch (Msg)
+	{
+	case WM_PAINT://cerere de redesenare a unei portiuni a ferestrei unei aplicatii
+		hDC = BeginPaint(hWnd, &Ps);
+		PolyBezier(hDC, Pt, 4);
+
+
+		double x;
+		double y;
+
+		while (t < 1) {
+			x = pow((1 - t), 3.0) * 0 + 3 * t * pow((1 - t), 2.0) * 30 +
+				3 * t * t * (1 - t) * 200 + pow(t, 3.0) * 400;
+			y = pow((1 - t), 3.0) * 0 + 3 * t * pow((1 - t), 2.0) * 200 +
+				3 * t * t * (1 - t) * 200 + pow(t, 3.0) * 0;
+			LineTo(hDC, (int)x, (int)y);
+			t += 0.01;
+		}
+		EndPaint(hWnd, &Ps);
+		break;
+	case WM_DESTROY://cerere pentru distrugerea (inchiderea) ferestrei aplicatiei
+		PostQuitMessage(WM_QUIT);
+		break;
+	default:
+		return DefWindowProc(hWnd, Msg, wParam, lParam);
+	}
+	return 0;
+}
