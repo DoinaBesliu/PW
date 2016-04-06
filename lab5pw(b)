@@ -1,0 +1,188 @@
+#include <windows.h>
+#include <tchar.h>
+int create_form(HINSTANCE, LPCTSTR, LPCTSTR);
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+
+typedef struct {
+	HBITMAP bmp;
+	HDC     hdc;
+	int     width;
+	int     height;
+} image_t;
+
+BOOL image_load(image_t* img, HDC hDC, const TCHAR* filename);
+void image_draw(image_t* img, HDC hDC, int x, int y, DWORD rop);
+void image_free(image_t* img);
+void image_focus(HDC hDC, image_t* img, const LPPOINT pt);
+
+int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE, LPTSTR, int){
+	return create_form(hInstance, _T("Cyberforum"), _T("Ïåðåòàñêèâàíèå îáðàçà"));
+}
+
+//îáðàáîò÷èê
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
+	HDC         hdc;
+	RECT        rc;
+	POINT       pt;
+	PAINTSTRUCT ps;
+
+	static HDC     thdc;
+	static image_t img;
+	static POINT   offset, pos, prev;
+	static BOOL    move = FALSE;
+	static HCURSOR hcur = NULL, scur = NULL;
+
+	switch (msg){
+	case WM_CREATE:
+		thdc = GetDC(hwnd);
+		// çàãðóçèòå ñâîé êàêîé-ëèáî ôàéë bmp
+		image_load(&img, thdc, _T("joker-minimal.bmp"));
+
+		GetClientRect(hwnd, &rc);
+		pos.x = (rc.right - img.width) / 2;
+		pos.y = (rc.bottom - img.height) / 2;
+
+		hcur = LoadCursor(NULL, IDC_SIZEALL);
+		scur = LoadCursor(NULL, IDC_ARROW);
+		break;
+	case WM_PAINT:
+		hdc = BeginPaint(hwnd, &ps);
+		image_draw(&img, hdc, pos.x, pos.y, SRCCOPY);
+		EndPaint(hwnd, &ps);
+		break;
+	case WM_LBUTTONDOWN:
+		GetCursorPos(&offset);
+		ScreenToClient(hwnd, &offset);
+		SetRect(&rc, pos.x, pos.y, pos.x + img.width, pos.y + img.height);
+		if (PtInRect(&rc, offset)){
+			move = TRUE;
+			prev.x = offset.x - (offset.x - pos.x);
+			prev.y = offset.y - (offset.y - pos.y);
+			offset.x -= pos.x;
+			offset.y -= pos.y;
+			SetCursor(hcur);
+		}
+		break;
+	case WM_MOUSEMOVE:
+		if (move){
+			GetCursorPos(&pt);
+			ScreenToClient(hwnd, &pt);
+			image_focus(thdc, &img, &prev);
+			prev.x = pt.x - offset.x;
+			prev.y = pt.y - offset.y;
+			image_focus(thdc, &img, &prev);
+		}
+		break;
+	case WM_LBUTTONUP:
+		if (move){
+			pt = pos;
+			pos = prev;
+			SetRect(&rc, prev.x, prev.y, prev.x + img.width, prev.y + img.height);
+			InvalidateRect(hwnd, &rc, TRUE);
+
+			SetRect(&rc, pt.x, pt.y, pt.x + img.width, pt.y + img.height);
+			InvalidateRect(hwnd, &rc, TRUE);
+			SetCursor(scur);
+		}
+		move = FALSE;
+		break;
+	case WM_SETCURSOR:
+		if (!move)
+			return DefWindowProc(hwnd, msg, wParam, lParam);
+		break;
+	case WM_DESTROY:
+		image_free(&img);
+		DestroyCursor(hcur);
+		DestroyCursor(scur);
+		ReleaseDC(hwnd, thdc);
+		PostQuitMessage(0);
+		break;
+	default:
+		return DefWindowProc(hwnd, msg, wParam, lParam);
+	}
+	return 0;
+}
+
+//ðèñîâàíèå âûäåëåíèÿ ïðè ïåðåíîñå îáðàçà
+void image_focus(HDC hDC, image_t* img, const LPPOINT pt){
+	RECT rc;
+	SetROP2(hDC, R2_NOT);
+	SetRect(&rc, pt->x, pt->y, pt->x + img->width, pt->y + img->height);
+	DrawFocusRect(hDC, &rc);
+}
+
+//çàãðóçêà
+BOOL image_load(image_t* img, HDC hDC, const TCHAR* filename){
+	BITMAP inf;
+	img->bmp = (HBITMAP)LoadImage(NULL, filename, IMAGE_BITMAP, 0, 0,
+		LR_LOADFROMFILE | LR_CREATEDIBSECTION);
+	if (img->bmp == NULL)
+		return FALSE;
+
+	img->hdc = CreateCompatibleDC(hDC);
+	if (img->hdc == NULL){
+		DeleteObject(img->bmp);
+		img->bmp = NULL;
+		return FALSE;
+	}
+
+	if (GetObject(img->bmp, sizeof(inf), (LPVOID)&inf)){
+		img->width = inf.bmWidth;
+		img->height = inf.bmHeight;
+	}
+	else
+		img->width = img->height = 40;
+	SelectObject(img->hdc, img->bmp);
+	return TRUE;
+}
+
+//âûâîä
+void image_draw(image_t* img, HDC hDC, int x, int y, DWORD rop){
+	BitBlt(hDC, x, y, img->width, img->height, img->hdc, 0, 0, rop);
+}
+
+//óäàëåíèå
+void image_free(image_t* img){
+	if (img->bmp != NULL){
+		DeleteObject(img->bmp);
+		img->bmp = NULL;
+	}
+	if (img->hdc != NULL){
+		DeleteDC(img->hdc);
+		img->hdc = NULL;
+	}
+}
+
+//ñîçäàíèå ôîðìû
+int create_form(HINSTANCE hinst, LPCTSTR cln, LPCTSTR cap){
+	MSG  msg;
+	HWND hwnd;
+	WNDCLASSEX wcl = { 0 };
+	wcl.cbSize = sizeof(wcl);
+	wcl.lpfnWndProc = (WNDPROC)WndProc;
+	wcl.hInstance = hinst;
+	wcl.hIcon = NULL;
+	wcl.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wcl.lpszClassName = cln;
+	wcl.hIconSm = NULL;
+	wcl.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
+
+	if (!RegisterClassEx(&wcl))
+		return FALSE;
+
+	hwnd = CreateWindowEx(WS_EX_APPWINDOW, cln, cap, WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, NULL, NULL, hinst, NULL);
+	if (hwnd == NULL) {
+		UnregisterClass(cln, hinst);
+		return FALSE;
+	}
+	ShowWindow(hwnd, SW_SHOW);
+	UpdateWindow(hwnd);
+
+	while (GetMessage(&msg, NULL, 0, 0)){
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+	UnregisterClass(cln, hinst);
+	return 0;
+}
